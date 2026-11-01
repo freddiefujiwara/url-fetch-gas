@@ -12,7 +12,7 @@ This is a Google Apps Script (GAS) web application that fetches the content of a
 
 Once deployed as a Web App, you can access it via a GET request:
 
-`GET https://script.google.com/macros/s/AKfycbx6iFGnB5EaSVedN5mk8F1L0iO9orwZZiOz_2m6wIRzHA1XsU555ib0Ex2LMCR1nLOvhw/exec?u=https://example.com`
+`GET https://script.google.com/macros/s/<deployment-id>/exec?u=https://example.com`
 
 ### Query Parameters
 
