@@ -2,10 +2,10 @@ openapi: 3.0.0
 info:
   title: General Purpose URL Fetcher API
   description: A GAS Web App to fetch content from any provided URL.
-  version: 1.1.0
+  version: 1.2.0
 servers:
-  - url: https://script.google.com/macros/s/AKfycbx6iFGnB5EaSVedN5mk8F1L0iO9orwZZiOz_2m6wIRzHA1XsU555ib0Ex2LMCR1nLOvhw
-    description: Production server
+  - url: https://script.google.com/macros/s/<deployment-id>
+    description: Production server (deployment ID is not published)
 paths:
   /exec:
     get:
@@ -19,6 +19,12 @@ paths:
             type: string
             format: uri
             example: "https://example.com"
+        - name: token
+          in: query
+          description: Client token (must match a token stored in the script properties).
+          required: true
+          schema:
+            type: string
       responses:
         '200':
           description: Successful response
