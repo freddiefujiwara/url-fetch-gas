@@ -7,6 +7,13 @@ describe('Code.js', () => {
     // Clean up globals
     delete global.UrlFetchApp;
     delete global.ContentService;
+    delete global.PropertiesService;
+    // Default: both client tokens are configured
+    global.PropertiesService = {
+      getScriptProperties: () => ({
+        getProperty: (name) => ({ TOKEN_PORTFOLIO: 'portfolio-token', TOKEN_READER: 'reader-token' })[name] || null
+      })
+    };
   });
 
   describe('doGet', () => {
@@ -31,7 +38,7 @@ describe('Code.js', () => {
       };
 
       const e = {
-        parameter: { u: targetUrl }
+        parameter: { u: targetUrl, token: 'portfolio-token' }
       };
 
       Code.doGet(e);
@@ -66,7 +73,7 @@ describe('Code.js', () => {
         MimeType: { JSON: 'application/json' }
       };
 
-      const e = { parameter: { u: 'ftp://invalid.com' } };
+      const e = { parameter: { u: 'ftp://invalid.com', token: 'portfolio-token' } };
       Code.doGet(e);
 
       const jsonResponse = JSON.parse(global.ContentService.createTextOutput.mock.calls[0][0]);
@@ -86,7 +93,7 @@ describe('Code.js', () => {
         MimeType: { JSON: 'application/json' }
       };
 
-      const e = { parameter: { u: targetUrl } };
+      const e = { parameter: { u: targetUrl, token: 'portfolio-token' } };
       Code.doGet(e);
 
       const jsonResponse = JSON.parse(global.ContentService.createTextOutput.mock.calls[0][0]);
@@ -104,7 +111,7 @@ describe('Code.js', () => {
         MimeType: { JSON: 'application/json' }
       };
 
-      const e = { parameter: { u: 'https://example.com' } };
+      const e = { parameter: { u: 'https://example.com', token: 'portfolio-token' } };
       Code.doGet(e);
 
       const jsonResponse = JSON.parse(global.ContentService.createTextOutput.mock.calls[0][0]);
@@ -121,6 +128,67 @@ describe('Code.js', () => {
 
       const jsonResponse = JSON.parse(global.ContentService.createTextOutput.mock.calls[0][0]);
       expect(jsonResponse.error).toContain('Error: Missing required parameter: u');
+    });
+
+    describe('client token authentication', () => {
+      const setupFetchAndContent = () => {
+        global.UrlFetchApp = {
+          fetch: vi.fn().mockReturnValue({
+            getResponseCode: vi.fn().mockReturnValue(200),
+            getContentText: vi.fn().mockReturnValue('<html>ok</html>')
+          })
+        };
+        global.ContentService = {
+          createTextOutput: vi.fn().mockReturnValue({ setMimeType: vi.fn() }),
+          MimeType: { JSON: 'application/json' }
+        };
+      };
+
+      it('should reject a request without a token and not fetch', () => {
+        setupFetchAndContent();
+
+        Code.doGet({ parameter: { u: 'https://example.com' } });
+
+        const jsonResponse = JSON.parse(global.ContentService.createTextOutput.mock.calls[0][0]);
+        expect(jsonResponse.error).toContain('Error: Unauthorized.');
+        expect(jsonResponse.content).toBeNull();
+        expect(global.UrlFetchApp.fetch).not.toHaveBeenCalled();
+      });
+
+      it('should reject a request with a wrong token and not fetch', () => {
+        setupFetchAndContent();
+
+        Code.doGet({ parameter: { u: 'https://example.com', token: 'wrong-token' } });
+
+        const jsonResponse = JSON.parse(global.ContentService.createTextOutput.mock.calls[0][0]);
+        expect(jsonResponse.error).toContain('Error: Unauthorized.');
+        expect(global.UrlFetchApp.fetch).not.toHaveBeenCalled();
+      });
+
+      it('should accept the reader token', () => {
+        setupFetchAndContent();
+
+        Code.doGet({ parameter: { u: 'https://example.com', token: 'reader-token' } });
+
+        const jsonResponse = JSON.parse(global.ContentService.createTextOutput.mock.calls[0][0]);
+        expect(jsonResponse.error).toBeNull();
+        expect(jsonResponse.content).toBe('<html>ok</html>');
+      });
+
+      it('should reject every request when no token is configured (fail closed)', () => {
+        setupFetchAndContent();
+        global.PropertiesService = {
+          getScriptProperties: () => ({
+            getProperty: () => null
+          })
+        };
+
+        Code.doGet({ parameter: { u: 'https://example.com', token: 'portfolio-token' } });
+
+        const jsonResponse = JSON.parse(global.ContentService.createTextOutput.mock.calls[0][0]);
+        expect(jsonResponse.error).toContain('Error: Unauthorized.');
+        expect(global.UrlFetchApp.fetch).not.toHaveBeenCalled();
+      });
     });
   });
 });
