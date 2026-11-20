@@ -56,8 +56,8 @@ function doGet(e) {
       throw new Error('Unauthorized.');
     }
 
-    // 3. Validate URL format
-    if (!/^https?:\/\/.+/.test(url)) {
+    // 3. Validate URL format (the scheme is case-insensitive)
+    if (!/^https?:\/\/.+/i.test(url)) {
       throw new Error('Invalid URL format. Must start with http:// or https://');
     }
 
@@ -76,12 +76,29 @@ function doGet(e) {
     result.content = fetchResponse.getContentText();
   } catch (error) {
     // 7. Handle errors
-    result.error = error.toString();
+    result.error = errorMessage_(error);
   }
 
   // 8. Return structured JSON response
   return ContentService.createTextOutput(JSON.stringify(result))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
+ * Converts a caught value to a display string. Never throws: some
+ * thrown values (null, objects without a usable toString) would
+ * otherwise make the error handler itself throw and lose the
+ * structured JSON response.
+ *
+ * @param {*} error The caught value.
+ * @returns {string} A display string for the error field.
+ */
+function errorMessage_(error) {
+  try {
+    return String(error);
+  } catch (ignored) {
+    return 'Unknown error';
+  }
 }
 
 // Export for testing in Node.js environment
